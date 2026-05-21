@@ -1,0 +1,15 @@
+package com.Basisttha.IronHold.Model;
+
+public enum AuditAction {
+    FILE_UPLOADED,
+    FILE_DOWNLOADED,
+    FILE_DELETED,
+    FILE_RESTORED,
+    FILE_SHARED,
+    FILE_SHARE_REVOKED,
+    FOLDER_CREATED,
+    FOLDER_DELETED,
+    USER_LOGIN,
+    USER_LOGOUT,
+    QUOTA_EXCEEDED
+}
