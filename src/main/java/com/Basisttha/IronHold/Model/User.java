@@ -33,6 +33,7 @@ public class User {
     private String username;
     @CreationTimestamp
     private LocalDateTime createdAt;
+    @CreationTimestamp
     private LocalDateTime lastAccessedAt;
     @Enumerated(EnumType.STRING)
     private Status status;
@@ -44,6 +45,7 @@ public class User {
     @PrePersist
     @SuppressWarnings("unused")
     void setCreation(){
+        this.quotaUsed = 0L;
         this.quotaAllowed = 5000000000L;//aka 5GB(Giga not Gibi) allowed at first. SHould be in application.properties!
     }
 }

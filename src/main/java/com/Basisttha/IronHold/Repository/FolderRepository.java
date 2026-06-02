@@ -14,5 +14,8 @@ public interface FolderRepository extends JpaRepository<Folder, UUID>{
     List<Folder> findByName(String name);//Multiple folders can exist with the same name inside different folders
     List<Folder> findByOwner(User owner);
 
+    //Boolean existsByFolderId(UUID folderId);
+
     List<Folder> findByParentFolder(Folder parentFolder);
+    List<Folder> findByParentFolderAndOwner(Folder parentFolder, User owner);
 }

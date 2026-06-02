@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -13,7 +14,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,33 +21,30 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "folder")
-@NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@NoArgsConstructor
 @Getter
 @Setter
-public class Folder {
-
+@Builder
+public class RecoveryKey {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID folderId;
-    private String name;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private User owner;
-    @ManyToOne(fetch=FetchType.LAZY)
-    @JoinColumn(name = "parent_folder_id", nullable = true)
-    private Folder parentFolder;
+    @GeneratedValue(strategy=GenerationType.UUID)
+    private UUID recoveryKeyId;
+    @ManyToOne(fetch= FetchType.LAZY)
+    @JoinColumn(name = "recovery_key_user", nullable = false)
+    private User user;
+    @Column(nullable=false, columnDefinition="TEXT")
+    private String recoveryKeyHash;
+    private Boolean invalidated;
+    private Boolean used;
+    private LocalDateTime usedOn;
     @CreationTimestamp
-    private LocalDateTime createdAt;
-    private Boolean isShared;
-    private Boolean isDeleted;
-    private LocalDateTime deletedAt;
+    private LocalDateTime createdOn;
 
     @PrePersist
     @SuppressWarnings("unused")
-    void SetStuff() {
-        this.isShared = false;
+    void setStuff(){
+        this.invalidated = false;
+        this.used = false;
     }
 }
