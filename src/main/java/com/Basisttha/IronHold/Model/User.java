@@ -47,5 +47,6 @@ public class User {
     void setCreation(){
         this.quotaUsed = 0L;
         this.quotaAllowed = 5000000000L;//aka 5GB(Giga not Gibi) allowed at first. SHould be in application.properties!
+        this.status = Status.ACTIVE;
     }
 }

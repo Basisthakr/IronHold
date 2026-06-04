@@ -9,14 +9,18 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
 @Entity
 @Table(name = "revoked_tokens")
 @Builder
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class RevokedToken {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -26,7 +30,7 @@ public class RevokedToken {
     private String token;
 
     @Column(nullable = false)
-    private final LocalDateTime expiresAt;
+    private LocalDateTime expiresAt;
 
     private LocalDateTime revokedAt;
 }

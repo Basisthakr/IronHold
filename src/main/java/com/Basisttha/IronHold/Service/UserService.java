@@ -33,6 +33,7 @@ import com.Basisttha.IronHold.DTO.RotateKeyRequest;
 import com.Basisttha.IronHold.DTO.VerifyRequest;
 import com.Basisttha.IronHold.Exception.InvalidSignatureException;
 import com.Basisttha.IronHold.Exception.NoRecoveryKeysException;
+import com.Basisttha.IronHold.Exception.UnauthorizedException;
 import com.Basisttha.IronHold.Exception.UserNotFoundException;
 import com.Basisttha.IronHold.Exception.UsernameAlreadyExists;
 import com.Basisttha.IronHold.Model.AuthChallenges;
@@ -63,7 +64,6 @@ public class UserService {
         if (userRepo.existsByUsername(req.getUsername())) {
             throw new UsernameAlreadyExists("Username Taken");
         }
-        System.out.println("Username *********************(*)(())(() : "+ req.getUsername());
         User newUser = User.builder()
                 .username(req.getUsername())
                 .publicKey(req.getPublicKey())
@@ -105,6 +105,7 @@ public class UserService {
         User currentUser = userRepo.findById(req.getUserId()).orElseThrow(() -> new UserNotFoundException("This user does not exist"));
 
         AuthChallenges auth = authRepo.findByUserAndUsedFalse(currentUser).orElseThrow(() -> new RuntimeException("No authentication challenge exists"));
+        if(!auth.getExpiry().isAfter(LocalDateTime.now()))   throw new UnauthorizedException("The challenge has expired");
 
         boolean valid = verifySignature(auth.getNonce(), req.getSignature(), currentUser.getPublicKey());
 
@@ -122,9 +123,10 @@ public class UserService {
     }
 
     @Transactional//Transactional here because if current token is revoked and then the function crashes before sending the new token, the user will not be able to log in
-    public LogoutResponse logout(LogoutRequest req) throws UserNotFoundException, RuntimeException{
+    public LogoutResponse logout(LogoutRequest req, User currentUser) throws UserNotFoundException, RuntimeException{
         //verify if the user has a valid JWT, then revoke that JWT and send uuid back to user
         User user = userRepo.findById(req.getUserId()).orElseThrow(() -> new UserNotFoundException("This user does not exist"));
+        if(!currentUser.getUserId().equals(req.getUserId()))   throw new UnauthorizedException("You cannot log out for another user");
         String token = req.getToken();
         boolean valid = jwtService.isTokenValid(token);
         if(!valid){
@@ -141,7 +143,7 @@ public class UserService {
         // use passwordEncoder to match, if no key, then error, else, put that key as used, usedOn, and save. For user, update with newPublicKey, put keyRotatedAt date and save.
         //Generate new JWT Token and send
         User user = userRepo.findById(req.getUserId()).orElseThrow(() -> new UserNotFoundException("This user does not exist"));
-
+        //No user is logged in
         List<RecoveryKey> activeKeys = recoveryKeyRepository.findByUserAndInvalidatedFalseAndUsedFalse(user);
 
         if(activeKeys.isEmpty()){
@@ -162,9 +164,10 @@ public class UserService {
     }
 
     @Transactional
-    public RecoveryKeyResponse rotateRecoveryKeys(RecoveryKeyRequest req) throws UserNotFoundException{
+    public RecoveryKeyResponse rotateRecoveryKeys(RecoveryKeyRequest req, User currentUser) throws UserNotFoundException{
         //find previous keys that are not invalidated. Use stream, map to invalidate them. The generate 8 new keys and send back
         User user = userRepo.findById(req.getUserId()).orElseThrow(() -> new UserNotFoundException("This user does not exist"));
+        if(!currentUser.getUserId().equals(req.getUserId()))   throw new UnauthorizedException("You cannot rotate recovery keys for another user");
         List<RecoveryKey> activeKeys = recoveryKeyRepository.findByUserAndInvalidatedFalse(user);
         //activeKeys.stream().map(key -> key.setInvalidated(true)).collect(collector.toList());
         activeKeys.forEach(key -> key.setInvalidated(true));//No working keys left now
@@ -187,30 +190,30 @@ public class UserService {
     }
 
     //No @Transactional here because if crash happens, then the client will simply send another request with the new key.
-    public void rotateKeyRequest(RotateKeyRequest req) throws UserNotFoundException{
+    public void rotateKeyRequest(RotateKeyRequest req, User currentUser) throws UserNotFoundException{
         User user = userRepo.findById(req.getUserId()).orElseThrow(() -> new UserNotFoundException("This user does not exist"));
+        if(!currentUser.getUserId().equals(req.getUserId()))   throw new UnauthorizedException("You cannot rotate keys for another user");
         user.setPublicKey(req.getNewPublicKey());
         user.setKeyRotatedAt(LocalDateTime.now());
         userRepo.save(user);
     }
 
     private boolean verifySignature(String nonce, String signatureB64, String publicKeyB64) {
-        return true;
 
-        // try {
-        //     byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyB64);
-        //     X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
-        //     KeyFactory keyFactory = KeyFactory.getInstance("Ed25519");
-        //     PublicKey publicKey = keyFactory.generatePublic(keySpec);
+        try {
+            byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyB64);
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("Ed25519");
+            PublicKey publicKey = keyFactory.generatePublic(keySpec);
 
-        //     Signature sig = Signature.getInstance("Ed25519");
-        //     sig.initVerify(publicKey);
-        //     sig.update(nonce.getBytes());
+            Signature sig = Signature.getInstance("Ed25519");
+            sig.initVerify(publicKey);
+            sig.update(nonce.getBytes());
 
-        //     byte[] signatureBytes = Base64.getDecoder().decode(signatureB64);
-        //     return sig.verify(signatureBytes);
-        // } catch (InvalidKeyException | NoSuchAlgorithmException | SignatureException | InvalidKeySpecException e) {
-        //     return false;
-        // }
+            byte[] signatureBytes = Base64.getDecoder().decode(signatureB64);
+            return sig.verify(signatureBytes);
+        } catch (InvalidKeyException | NoSuchAlgorithmException | SignatureException | InvalidKeySpecException e) {
+            return false;
+        }
     }
 }

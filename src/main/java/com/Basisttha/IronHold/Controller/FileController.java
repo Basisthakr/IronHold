@@ -33,7 +33,7 @@ public class FileController {
     private final FileService fileService;
 
     @PostMapping("/upload")
-    public ResponseEntity<UploadResponse> initiateUpload(@RequestBody UploadRequest req){
+    public ResponseEntity<UploadResponse> initiateUpload(@RequestBody UploadRequest req) throws FileNotFoundException{
         User currentUser = (User)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(fileService.initiateUpload(req, currentUser));
     }
@@ -66,7 +66,7 @@ public class FileController {
     }
 
     @GetMapping("/list")
-    public ResponseEntity<ListFileResponse> listAllFiles(@RequestParam UUID parentFolderId){
+    public ResponseEntity<ListFileResponse> listAllFiles(@RequestParam(required = false) UUID parentFolderId){
         User currentUser = (User)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(fileService.listAllFilesInFolder(parentFolderId, currentUser));
     }

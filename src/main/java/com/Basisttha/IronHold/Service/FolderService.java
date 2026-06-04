@@ -42,8 +42,7 @@ public class FolderService {
 
     //createFolder: validate no duplicate name under same parent for same owner, build and save entity. 
     public void createFolder(String name, UUID parentFolderId, User currentUser) throws DuplicateFolderException {
-        //Previously had a boolean return, a true if folder creation is a success, false otherwise. Decided against it, as failing to create wasnt returning false.
-        Folder parentFolder = folderRepository.findById(parentFolderId).orElse(null);
+        Folder parentFolder = parentFolderId==null?null:folderRepository.findById(parentFolderId).orElseThrow(() -> new FolderNotFoundException("This parent folder does not exist"));
         Optional<FolderShare> folderShare = folderShareRepository.findByFolderAndRecipientAndPermissionLevelIn(parentFolder, currentUser, List.of(PermissionLevel.READ_WRITE, PermissionLevel.SHARED_OWNER));
         if (parentFolder != null) {
             if(Boolean.TRUE.equals(parentFolder.getIsDeleted())){
@@ -72,7 +71,7 @@ public class FolderService {
         List<Folder> temp = folderRepository.findByParentFolderAndOwner(null, currentUser);
         List<FolderShare> temp2 = folderShareRepository.findByRecipient(currentUser);
         temp2.forEach(share -> {
-            if(share.getFolder().getParentFolder() == null){
+            if(share.getRevokedAt()==null && (share.getExpiresAt()==null ||share.getExpiresAt().isAfter(LocalDateTime.now())) && share.getFolder().getParentFolder() == null){
                 temp.add(share.getFolder());
             }
         });
@@ -84,13 +83,14 @@ public class FolderService {
         if (parentFolderId == null) {
             return listFolders(currentUser);
         }
-        Folder parentFolder = folderRepository.findById(parentFolderId).orElse(null);
+        //this is not the root folder
+        Folder parentFolder = folderRepository.findById(parentFolderId).orElseThrow(() -> new FolderNotFoundException("This folder does not exist"));
         List<Folder> temp = folderRepository.findByParentFolderAndOwner(parentFolder, currentUser);
         List<FolderShare> temp2 = folderShareRepository.findByRecipient(currentUser);
         temp2.forEach(foldershare -> {
             if(foldershare.getRevokedAt()==null && (foldershare.getExpiresAt()==null || foldershare.getExpiresAt().isAfter(LocalDateTime.now()))){
-                if(foldershare.getFolder().getParentFolder().getFolderId().equals(parentFolderId)){
-                //here, the folder is good
+                if(foldershare.getFolder().getParentFolder()!=null && foldershare.getFolder().getParentFolder().getFolderId().equals(parentFolderId)){
+                //here, the folder is good//parentFolder is not null because if parentFolder is null then the folder is in the root, and since parentFolder!=null, the user does not want files in the root.
                     temp.add(foldershare.getFolder());
                 }
             }

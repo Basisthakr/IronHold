@@ -1,6 +1,7 @@
 package com.Basisttha.IronHold.Controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +19,7 @@ import com.Basisttha.IronHold.DTO.RegisterRequest;
 import com.Basisttha.IronHold.DTO.RegisterResponse;
 import com.Basisttha.IronHold.DTO.RotateKeyRequest;
 import com.Basisttha.IronHold.DTO.VerifyRequest;
+import com.Basisttha.IronHold.Model.User;
 import com.Basisttha.IronHold.Service.UserService;
 
 import jakarta.validation.Valid;
@@ -48,7 +50,8 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<LogoutResponse> logout(@RequestBody LogoutRequest req){
-        return ResponseEntity.ok(userService.logout(req));
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(userService.logout(req, currentUser));
     }
 
     @PostMapping("/recover")
@@ -58,12 +61,14 @@ public class AuthController {
 
     @PostMapping("/rotate-recovery-keys")
     public ResponseEntity<RecoveryKeyResponse> rotateRecoveryKeys(@RequestBody RecoveryKeyRequest req){
-        return ResponseEntity.ok(userService.rotateRecoveryKeys(req));
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(userService.rotateRecoveryKeys(req, currentUser));
     }
 
     @PostMapping("/rotate-public-key")
     public ResponseEntity<String> rotatePublicKey(@RequestBody RotateKeyRequest req){
-        userService.rotateKeyRequest(req);
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        userService.rotateKeyRequest(req, currentUser);
         return ResponseEntity.ok("Key rotated successfully.");
     }
 }

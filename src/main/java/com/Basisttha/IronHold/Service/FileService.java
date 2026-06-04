@@ -57,9 +57,15 @@ public class FileService {
             throw new NotEnoughStorageException("Storage quota exceeded");
         }
 
-        Folder parentFolder = req.getParentFolderId() == null ? null : folderRepository.findById(req.getParentFolderId()).orElse(null);
+        Folder parentFolder = req.getParentFolderId() == null ? null : folderRepository.findById(req.getParentFolderId()).orElseThrow(() -> new FolderNotFoundException("This parent folder does not exist"));
         if(parentFolder!=null && Boolean.TRUE.equals(parentFolder.getIsDeleted())){
             throw new FileNotFoundException("File does not exist");
+        }
+        if(parentFolder !=null){
+            boolean isOwner = parentFolder.getOwner().getUserId().equals(currentUser.getUserId());
+            Optional<FolderShare> folderShare = folderShareRepository.findByFolderAndRecipientAndPermissionLevelIn(parentFolder, currentUser, List.of(PermissionLevel.READ_WRITE, PermissionLevel.SHARED_OWNER));
+            boolean hasWriteAccess = folderShare.map(s -> s.getRevokedAt()==null && (s.getExpiresAt()==null || s.getExpiresAt().isAfter(LocalDateTime.now()))).orElse(false);
+            if(!isOwner && !hasWriteAccess)  throw new UnauthorizedException("You do not have permission to upload files in this folder");
         }
 
         StoredFile newFile = StoredFile.builder()
@@ -95,6 +101,10 @@ public class FileService {
             throw new FileNotFoundException("This file has not been uploaded");
         }
 
+        if(file.getUploadStatus().equals(UploadStatus.DONE)){
+            throw new RuntimeException("The file has already been uploaded");
+        }
+
         file.setUploadStatus(UploadStatus.DONE);
         file.setLastModifiedAt(LocalDateTime.now());
         fileRepository.save(file);
@@ -108,8 +118,13 @@ public class FileService {
     }
 
     @Transactional
-    public void isUploadInSharedFolder(StoredFile file, User currentUser, Map<UUID, String> encryptionKeyForRecipients) {
+    public void isUploadInSharedFolder(StoredFile file, User currentUser, Map<UUID, String> encryptionKeyForRecipients) throws UnauthorizedException{
         List<FolderShare> sharedFolder = folderShareRepository.findByFolder(file.getFolder());
+        sharedFolder.removeIf(share -> {
+            boolean isNotRevoked = share.getRevokedAt()==null;//if true then not revoked
+            boolean isNotExpired = share.getExpiresAt()==null || share.getExpiresAt().isAfter(LocalDateTime.now());
+            return !isNotRevoked || !isNotExpired;
+        });
         if (sharedFolder.isEmpty()) {
             return;//not a shared folder
         }        //Here I need to find the recipient(s), the permission and the duration of the share, and then apply that to the file.
@@ -122,6 +137,15 @@ public class FileService {
             }
             fileShareRepository.save(temp);
         });
+        //If Alice is owner, and Bob uploads a file in Alice's folder, then Alice should get a fileshare for Bob's file
+        Folder folder = file.getFolder();
+        if(!folder.getOwner().getUserId().equals(currentUser.getUserId())){
+            //current user is NOT the owner of the file
+            FolderShare temp = folderShareRepository.findByFolderAndRecipient(folder, currentUser).orElseThrow(() -> new UnauthorizedException("You do not have permission to upload in this folder"));//to get the permission that current user has in the shared folder, so we can replicate the same permission for currentUser's file to folder owner
+            String encKey = encryptionKeyForRecipients.get(folder.getOwner().getUserId());
+            FileShare ownerShare = FileShare.builder().file(file).recipient(folder.getOwner()).permissionLevel(temp.getPermissionLevel()).expiresAt(temp.getExpiresAt()).encryptedFileKey(encKey).build();
+            fileShareRepository.save(ownerShare);
+        }
     }
 
     public DownloadResponse initiateDownload(UUID fileId, User currentUser) throws FileNotFoundException, UnauthorizedException {
@@ -187,10 +211,11 @@ public class FileService {
         //There are only two permissions right now. Read and Read write. If this isnt your folder, you WONT be able to even see it. SO why bother to check, you obviously can see it.
         //and both read and read_write can download. But, I should check because I shouldnt trust the client
 
+        //Steps: 1. Get all files that are in that folder 2. Get files in that folder that are shared to me 3. Remove all files that I dont own or isnt shared to me
         List<StoredFile> files;
         Set<UUID> set = new HashSet<>();
         if (parentFolderId == null) {
-            files = fileRepository.findByFolder(null);
+            files = fileRepository.findByFolder(null);//gets all files, regardless of who owns them
         } else {
             Folder parentFolder = folderRepository.findById(parentFolderId).orElseThrow(() -> new FolderNotFoundException("This folder does not exist"));
             files = fileRepository.findByFolder(parentFolder);
@@ -213,22 +238,16 @@ public class FileService {
                 }
             }
         });
-        files.removeIf(file -> {
+        files.removeIf(file -> {//removes all shares where I am not owner or the share has expired
             boolean isOwner = file.getOwner().getUserId()
                     .equals(currentUser.getUserId());
 
             List<FileShare> shares = fileShareRepository.findByFile(file);
 
-            boolean isRecipient = shares.stream()
-                    .anyMatch(share
-                            -> share.getRecipient().getUserId()
-                            .equals(currentUser.getUserId())
-                    && share.getRevokedAt() == null
-                    && (share.getExpiresAt() == null
-                    || share.getExpiresAt().isAfter(LocalDateTime.now()))
-                    && (share.getPermissionLevel() == PermissionLevel.READ
-                    || share.getPermissionLevel() == PermissionLevel.READ_WRITE)
-                    );
+            boolean isRecipient = shares.stream().anyMatch(share-> share.getRecipient().getUserId().equals(currentUser.getUserId())
+                    && share.getRevokedAt() == null && (share.getExpiresAt() == null || share.getExpiresAt().isAfter(LocalDateTime.now()))
+                    && (share.getPermissionLevel() == PermissionLevel.READ || share.getPermissionLevel() == PermissionLevel.READ_WRITE)
+            );
 
             return !isOwner && !isRecipient;
         });
@@ -256,7 +275,7 @@ public class FileService {
         //else, exception -> UnauthorizedException("You do not have permission to permanently delete this file. Worried about storage space?...")
         files.removeIf(file -> {//owner
             FileShare shared = fileShareRepository.findByFileAndRecipientAndPermissionLevelIn(file, currentUser, List.of(PermissionLevel.READ_WRITE, PermissionLevel.SHARED_OWNER)).orElse(null);
-            boolean hasPermission = shared != null;//if no fileshare, then you do not have permission to delete this file
+            boolean hasPermission = shared != null && shared.getRevokedAt()==null && (shared.getExpiresAt()==null || shared.getExpiresAt().isAfter(LocalDateTime.now()));//if no fileshare, then you do not have permission to delete this file
             boolean isOwner = file.getOwner().getUserId().equals(currentUser.getUserId());
             return !hasPermission && !isOwner;//if owner, then return false aka not delete
         });

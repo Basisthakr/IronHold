@@ -10,6 +10,7 @@ import com.Basisttha.IronHold.Model.User;
 import com.Basisttha.IronHold.Model.Folder;
 import com.Basisttha.IronHold.Model.UploadStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 
@@ -19,4 +20,5 @@ public interface FileRepository extends JpaRepository<StoredFile, UUID>{
     List<StoredFile> findByOwner(User owner);
     List<StoredFile> findByFolder(Folder folder);
     List<StoredFile> findByUploadStatus(UploadStatus uploadStatus);
+    List<StoredFile> findByUploadedAtBeforeAndIsDeleted(LocalDateTime cutoff, Boolean isDeleted);
 }
