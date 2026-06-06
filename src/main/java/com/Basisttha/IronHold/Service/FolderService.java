@@ -5,12 +5,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import com.Basisttha.IronHold.DTO.FolderResponse;
 import com.Basisttha.IronHold.DTO.FolderShareRequest;
 import com.Basisttha.IronHold.DTO.FolderShareRequestList;
-import com.Basisttha.IronHold.DTO.ListFoldersResponse;
+import com.Basisttha.IronHold.DTO.PageResponse;
 import com.Basisttha.IronHold.Exception.DuplicateFolderException;
 import com.Basisttha.IronHold.Exception.FolderNotFoundException;
 import com.Basisttha.IronHold.Exception.UnauthorizedException;
@@ -27,6 +29,7 @@ import com.Basisttha.IronHold.Repository.FolderRepository;
 import com.Basisttha.IronHold.Repository.FolderShareRepository;
 import com.Basisttha.IronHold.Repository.UserRepository;
 
+import io.jsonwebtoken.lang.Collections;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
@@ -66,7 +69,7 @@ public class FolderService {
         folderRepository.save(newFolder);
     }
 
-    public ListFoldersResponse listFolders(User currentUser) {
+    public PageResponse<FolderResponse> listFolders(User currentUser, int page, int size) {
         //list all root folders in which the current user is owner
         List<Folder> temp = folderRepository.findByParentFolderAndOwner(null, currentUser);
         List<FolderShare> temp2 = folderShareRepository.findByRecipient(currentUser);
@@ -75,13 +78,25 @@ public class FolderService {
                 temp.add(share.getFolder());
             }
         });
-        temp.removeIf(folder -> Boolean.TRUE.equals(folder.getIsDeleted()));
-        return ListFoldersResponse.builder().folders(temp).build();
+        return pageIt(temp, page, size);
     }
 
-    public ListFoldersResponse listFolders(UUID parentFolderId, User currentUser) {
+    public PageResponse<FolderResponse> pageIt(List<Folder> temp, int page, int size){
+        temp.removeIf(folder -> Boolean.TRUE.equals(folder.getIsDeleted()));
+        int totalFolders = temp.size();
+        int totalPages = (int) Math.ceil((double) totalFolders/size);
+
+        int from_index = page * size;
+        int to_index = Math.min(from_index + size, totalFolders);
+        List<Folder> pagedFolders = from_index >= totalFolders ? Collections.emptyList(): temp.subList(from_index, to_index) ;
+        List<FolderResponse> content = pagedFolders.stream().map(this::toFolderResponse).collect(Collectors.toList());
+
+        return PageResponse.<FolderResponse>builder().content(content).page(page).size(size).totalElements(totalFolders).totalPages(totalPages).last(pagedFolders.isEmpty()).build();
+    }
+
+    public PageResponse<FolderResponse> listFolders(UUID parentFolderId, User currentUser, int page, int size) {
         if (parentFolderId == null) {
-            return listFolders(currentUser);
+            return listFolders(currentUser, page, size);
         }
         //this is not the root folder
         Folder parentFolder = folderRepository.findById(parentFolderId).orElseThrow(() -> new FolderNotFoundException("This folder does not exist"));
@@ -96,7 +111,8 @@ public class FolderService {
             }
         });
         temp.removeIf(folder -> Boolean.TRUE.equals(folder.getIsDeleted()));
-        return ListFoldersResponse.builder().folders(temp).build();
+        //ListFoldersResponse.builder().folders(temp).build();
+        return pageIt(temp, page, size);
     }
 
     @Transactional
@@ -194,5 +210,8 @@ public class FolderService {
                 shareFolder(currentUser, temp);
             }
         });
+    }
+    public FolderResponse toFolderResponse(Folder folder){
+        return FolderResponse.builder().folderId(folder.getFolderId()).name(folder.getName()).parentFolderId(folder.getParentFolder().getFolderId()).createdAt(folder.getCreatedAt()).isShared(folder.getIsShared()).build();
     }
 }

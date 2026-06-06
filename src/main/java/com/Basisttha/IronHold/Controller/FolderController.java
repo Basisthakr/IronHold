@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.Basisttha.IronHold.DTO.FolderShareRequestList;
-import com.Basisttha.IronHold.DTO.ListFoldersResponse;
+import com.Basisttha.IronHold.DTO.PageResponse;
+import com.Basisttha.IronHold.Model.Folder;
 import com.Basisttha.IronHold.Model.User;
 import com.Basisttha.IronHold.Service.FolderService;
 
@@ -34,9 +35,9 @@ public class FolderController {
     }
 
     @GetMapping("/list")
-    public ResponseEntity<ListFoldersResponse> listFolders(@RequestParam(required = false) UUID parentFolderId) {
+    public ResponseEntity<PageResponse<Folder>> listFolders(@RequestParam(required = false) UUID parentFolderId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return ResponseEntity.ok(folderService.listFolders(parentFolderId, currentUser));
+        return ResponseEntity.ok(folderService.listFolders(parentFolderId, currentUser, page, size));
     }
 
     @DeleteMapping("/delete")

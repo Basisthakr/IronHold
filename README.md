@@ -21,27 +21,27 @@ A privacy-focused, end-to-end encrypted file storage and sharing backend. Files 
 
 **Files**
 - Two-step encrypted upload: server issues a presigned S3 PUT URL, client uploads directly to S3
-- Presigned download URLs with correct Content-Disposition so browsers save files with original filenames
+- Presigned download URLs with correct Content-Disposition so browsers save files with original filenames.
 - Soft delete and hard delete (hard delete removes DB record and S3 object)
 - File sharing with per-recipient encrypted file keys and configurable permission levels (READ, READ_WRITE, SHARED_OWNER)
 - Optional share expiry
 - Storage quota enforcement per user (5 GB)
+- pagination on file listings 
 
 **Folders**
 - Create folders with optional parent (nested folder support)
 - List folders by parent
 - Soft delete a folder (cascades to all subfolders and files inside, revokes related FileShares)
 - Folder sharing: creates FolderShare and FileShares for all files currently in the folder
+- pagination on file listings 
 
 **Misc**
 - Audit log model in place
 - Demo account cleanup: soft-deletes demo files after 30 minutes, hard-deletes demo accounts nightly at 3 AM IST
-- SpringDoc OpenAPI at `/swagger-ui.html`
 - Interactive playground hosted at `https://basistth.dev/ironhold-playground`
 
 ## In Progress
-
-pagination on file listings  
+ 
 ·  Redis caching for quota and presigned URLs  
 ·  scheduled background jobs (orphaned blob cleanup, expired share revocation)  
 ·  multipart uploads for large files  
@@ -49,6 +49,4 @@ pagination on file listings
 
 ## Deployment
 
-- EC2 t3.small, Amazon Linux 2023, `ap-south-1`
-- Spring Boot listens on port 8081, behind nginx
 - API at `https://ironhold.basistth.dev`

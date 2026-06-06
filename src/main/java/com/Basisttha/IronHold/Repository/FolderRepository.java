@@ -1,11 +1,14 @@
 package com.Basisttha.IronHold.Repository;
 
-import java.util.List;
 import java.util.UUID;
+import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.Basisttha.IronHold.Model.Folder;
@@ -14,13 +17,17 @@ import com.Basisttha.IronHold.Model.User;
 @Repository
 public interface FolderRepository extends JpaRepository<Folder, UUID> {
 
-    List<Folder> findByName(String name);//Multiple folders can exist with the same name inside different folders
+    Page<Folder> findByName(String name, Pageable pageable);//Multiple folders can exist with the same name inside different folders
+    List<Folder> findByName(String name);
 
+    Page<Folder> findByOwner(User owner, Pageable pageable);
     List<Folder> findByOwner(User owner);
 
     //Boolean existsByFolderId(UUID folderId);
     List<Folder> findByParentFolder(Folder parentFolder);
+    Page<Folder> findByParentFolder(Folder parentFolder, Pageable pageable);
 
+    Page<Folder> findByParentFolderAndOwner(Folder parentFolder, User owner, Pageable pageable);
     List<Folder> findByParentFolderAndOwner(Folder parentFolder, User owner);
 
     @Modifying

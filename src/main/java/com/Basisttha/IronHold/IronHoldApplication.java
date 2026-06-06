@@ -11,5 +11,4 @@ public class IronHoldApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(IronHoldApplication.class, args);
 	}
-
 }

@@ -3,19 +3,22 @@ package com.Basisttha.IronHold.Service;
 import java.io.FileNotFoundException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.Basisttha.IronHold.DTO.DownloadResponse;
+import com.Basisttha.IronHold.DTO.FileResponse;
 import com.Basisttha.IronHold.DTO.FileShareRequest;
 import com.Basisttha.IronHold.DTO.HardDeleteRequest;
-import com.Basisttha.IronHold.DTO.ListFileResponse;
+import com.Basisttha.IronHold.DTO.PageResponse;
 import com.Basisttha.IronHold.DTO.UploadRequest;
 import com.Basisttha.IronHold.DTO.UploadResponse;
 import com.Basisttha.IronHold.Exception.FolderNotFoundException;
@@ -206,11 +209,7 @@ public class FileService {
         fileRepository.save(file);
     }
 
-    public ListFileResponse listAllFilesInFolder(UUID parentFolderId, User currentUser) throws FolderNotFoundException {
-        //do you think I should check if this person owns this folder? I should, right? Here is my logic:
-        //There are only two permissions right now. Read and Read write. If this isnt your folder, you WONT be able to even see it. SO why bother to check, you obviously can see it.
-        //and both read and read_write can download. But, I should check because I shouldnt trust the client
-
+    public PageResponse<FileResponse> listAllFilesInFolder(UUID parentFolderId, User currentUser, int page, int size) throws FolderNotFoundException {
         //Steps: 1. Get all files that are in that folder 2. Get files in that folder that are shared to me 3. Remove all files that I dont own or isnt shared to me
         List<StoredFile> files;
         Set<UUID> set = new HashSet<>();
@@ -252,7 +251,15 @@ public class FileService {
             return !isOwner && !isRecipient;
         });
         //Now files should only have the files that the person actually owns.
-        return new ListFileResponse(files);
+        int totalElements = files.size();
+        int totalPages =(int) Math.ceil((double) totalElements/size);
+
+        int fromIndex = page*size;
+        int toIndex = Math.min(fromIndex + size, totalElements);
+
+        List<StoredFile> result = fromIndex >= toIndex? Collections.emptyList(): files.subList(fromIndex,toIndex);
+        List<FileResponse> content = result.stream().map(this::toFileResponse).collect(Collectors.toList());
+        return PageResponse.<FileResponse>builder().content(content).page(page).size(size).totalElements(totalElements).totalPages(totalPages).last(content.isEmpty()).build();
     }
 
     @Transactional
@@ -296,5 +303,9 @@ public class FileService {
             return "Files in which you were owner or had access were deleted.";
         }
         return "You do not have access to delete any of the file(s) selected.";
+    }
+
+    public FileResponse toFileResponse(StoredFile file){
+        return FileResponse.builder().fileId(file.getFileId()).mimeType(file.getMimeType()).sizeBytes(file.getSizeBytes()).originalName(file.getName()).uploadStatus(file.getUploadStatus()).folderId(file.getFolder()==null?null:file.getFolder().getFolderId()).build();
     }
 }

@@ -17,10 +17,11 @@ import com.Basisttha.IronHold.DTO.CompleteUploadRequest;
 import com.Basisttha.IronHold.DTO.DownloadResponse;
 import com.Basisttha.IronHold.DTO.FileShareRequest;
 import com.Basisttha.IronHold.DTO.HardDeleteRequest;
-import com.Basisttha.IronHold.DTO.ListFileResponse;
+import com.Basisttha.IronHold.DTO.PageResponse;
 import com.Basisttha.IronHold.DTO.UploadRequest;
 import com.Basisttha.IronHold.DTO.UploadResponse;
 import com.Basisttha.IronHold.Exception.UnauthorizedException;
+import com.Basisttha.IronHold.Model.StoredFile;
 import com.Basisttha.IronHold.Model.User;
 import com.Basisttha.IronHold.Service.FileService;
 
@@ -66,9 +67,9 @@ public class FileController {
     }
 
     @GetMapping("/list")
-    public ResponseEntity<ListFileResponse> listAllFiles(@RequestParam(required = false) UUID parentFolderId){
+    public ResponseEntity<PageResponse<StoredFile>> listAllFiles(@RequestParam(required = false) UUID parentFolderId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size){
         User currentUser = (User)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return ResponseEntity.ok(fileService.listAllFilesInFolder(parentFolderId, currentUser));
+        return ResponseEntity.ok(fileService.listAllFilesInFolder(parentFolderId, currentUser, page, size));
     }
 
     @PostMapping("/harddelete")
