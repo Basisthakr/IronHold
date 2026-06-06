@@ -41,11 +41,11 @@ A privacy-focused, end-to-end encrypted file storage and sharing backend. Files 
 
 ## In Progress
 
-- Redis is on the classpath but not used yet
-- No cleanup job for expired rows in the revoked tokens table
-- `User.lastAccessedAt` does not update after creation
-- `POST /api/folder/create` returns no folder ID, callers must follow up with a list call to get the new folder's UUID
-- No explicit share revocation endpoint, shares are only revoked as a side effect of deleting a folder
+pagination on file listings  
+·  Redis caching for quota and presigned URLs  
+·  scheduled background jobs (orphaned blob cleanup, expired share revocation)  
+·  multipart uploads for large files  
+·  OpenAPI/Swagger documentation 
 
 ## Deployment
 
