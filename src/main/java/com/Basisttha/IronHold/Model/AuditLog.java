@@ -6,6 +6,8 @@ import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -14,6 +16,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
 
 @Entity
 @Builder
@@ -27,6 +30,7 @@ public class AuditLog{
     private UUID auditId;
     private UUID actorId;
     private String auditMessage;
+    @Enumerated(EnumType.STRING)
     private AuditAction what;
     private UUID targetId;//which folder was the target?
     @CreationTimestamp

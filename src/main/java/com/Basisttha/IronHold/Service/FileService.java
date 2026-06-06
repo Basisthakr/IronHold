@@ -166,7 +166,7 @@ public class FileService {
             throw new FileNotFoundException("File Not Found");
         }
 
-        String downloadUrl = storageService.initiateDownload(s3ObjectKey);
+        String downloadUrl = storageService.initiateDownload(s3ObjectKey, file.getName());
 
         auditService.logAction(currentUser.getUserId(), AuditAction.FILE_DOWNLOADED, fileId, "File download initiated");
 

@@ -49,5 +49,6 @@ public class Folder {
     @SuppressWarnings("unused")
     void SetStuff() {
         this.isShared = false;
+        this.isDeleted = false;
     }
 }

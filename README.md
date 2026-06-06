@@ -1,20 +1,54 @@
-IronHold
-A privacy-focused, end-to-end encrypted file storage and sharing backend. Files are encrypted client-side before upload, the server stores only encrypted blobs and never has access to plaintext content.
+# IronHold
 
-Stack
-· Spring Boot 3 
-· PostgreSQL 
-· AWS S3 
-· Redis 
-· JWT Auth 
-· REST API
+A privacy-focused, end-to-end encrypted file storage and sharing backend. Files are encrypted client-side before upload. The server stores only encrypted blobs in S3 and never has access to plaintext content. Auth is passwordless, based on Ed25519 key pairs.
 
-Features (in progress)
-Encrypted file upload and download via S3 presigned URLs
-Folder organization with nested folder support
-Secure file sharing with per-recipient access control
-Storage quotas per user
-Audit log of all file access and share events
+## Stack
 
-Status
-Active development
+- Spring Boot 4.0.6, Java 21, Maven
+- PostgreSQL 15.16
+- AWS S3 (SDK v2.25.60)
+- JWT (jjwt 0.12.6)
+- Lombok, SpringDoc OpenAPI
+
+## Implemented
+
+**Auth**
+- Passwordless registration with Ed25519 public key
+- Challenge/sign/verify flow for login, returns a JWT
+- Token revocation on logout
+- Account recovery via one-time recovery keys (BCrypt-hashed, 8 keys per rotation)
+- Public key rotation (invalidates all previously issued JWTs)
+
+**Files**
+- Two-step encrypted upload: server issues a presigned S3 PUT URL, client uploads directly to S3
+- Presigned download URLs with correct Content-Disposition so browsers save files with original filenames
+- Soft delete and hard delete (hard delete removes DB record and S3 object)
+- File sharing with per-recipient encrypted file keys and configurable permission levels (READ, READ_WRITE, SHARED_OWNER)
+- Optional share expiry
+- Storage quota enforcement per user (5 GB)
+
+**Folders**
+- Create folders with optional parent (nested folder support)
+- List folders by parent
+- Soft delete a folder (cascades to all subfolders and files inside, revokes related FileShares)
+- Folder sharing: creates FolderShare and FileShares for all files currently in the folder
+
+**Misc**
+- Audit log model in place
+- Demo account cleanup: soft-deletes demo files after 30 minutes, hard-deletes demo accounts nightly at 3 AM IST
+- SpringDoc OpenAPI at `/swagger-ui.html`
+- Interactive playground hosted at `https://basistth.dev/ironhold-playground`
+
+## In Progress
+
+- Redis is on the classpath but not used yet
+- No cleanup job for expired rows in the revoked tokens table
+- `User.lastAccessedAt` does not update after creation
+- `POST /api/folder/create` returns no folder ID, callers must follow up with a list call to get the new folder's UUID
+- No explicit share revocation endpoint, shares are only revoked as a side effect of deleting a folder
+
+## Deployment
+
+- EC2 t3.small, Amazon Linux 2023, `ap-south-1`
+- Spring Boot listens on port 8081, behind nginx
+- API at `https://ironhold.basistth.dev`

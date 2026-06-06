@@ -1,5 +1,7 @@
 package com.Basisttha.IronHold.Service;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -39,11 +41,13 @@ public class S3StorageService {
         return s3Presigner.presignPutObject(objectPresignRequest).url().toString();
     }
 
-    public String initiateDownload(String s3ObjectKey) {
+    public String initiateDownload(String s3ObjectKey, String originalFilename) {
+        String encodedFilename = URLEncoder.encode(originalFilename, StandardCharsets.UTF_8).replace("+", "%20");
+        String disposition = "attachment; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename;
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                                                          .bucket(bucketname)
                                                          .key(s3ObjectKey)
-                                                         .responseContentDisposition("attachment")
+                                                         .responseContentDisposition(disposition)
                                                          .build();
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
                                                                         .signatureDuration(Duration.ofMinutes(15))

@@ -1,5 +1,6 @@
 package com.Basisttha.IronHold.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -12,4 +13,5 @@ import com.Basisttha.IronHold.Model.User;
 @Repository
 public interface AuthChallengesRepository extends JpaRepository<AuthChallenges, UUID>{
     Optional<AuthChallenges> findByUserAndUsedFalse(User currentUser);
+    List<AuthChallenges> findByUser(User user);
 }
