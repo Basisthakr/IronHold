@@ -91,7 +91,7 @@ public class FolderService {
         List<Folder> pagedFolders = from_index >= totalFolders ? Collections.emptyList(): temp.subList(from_index, to_index) ;
         List<FolderResponse> content = pagedFolders.stream().map(this::toFolderResponse).collect(Collectors.toList());
 
-        return PageResponse.<FolderResponse>builder().content(content).page(page).size(size).totalElements(totalFolders).totalPages(totalPages).last(pagedFolders.isEmpty()).build();
+        return PageResponse.<FolderResponse>builder().content(content).page(page).size(size).totalElements(totalFolders).totalPages(totalPages).last(totalFolders ==0 || page == totalPages - 1).build();
     }
 
     public PageResponse<FolderResponse> listFolders(UUID parentFolderId, User currentUser, int page, int size) {
@@ -105,7 +105,7 @@ public class FolderService {
         temp2.forEach(foldershare -> {
             if(foldershare.getRevokedAt()==null && (foldershare.getExpiresAt()==null || foldershare.getExpiresAt().isAfter(LocalDateTime.now()))){
                 if(foldershare.getFolder().getParentFolder()!=null && foldershare.getFolder().getParentFolder().getFolderId().equals(parentFolderId)){
-                //here, the folder is good//parentFolder is not null because if parentFolder is null then the folder is in the root, and since parentFolder!=null, the user does not want files in the root.
+                //here, the folder is good parentFolder is not null because if parentFolder is null then the folder is in the root, and since parentFolder!=null, the user does not want files in the root.
                     temp.add(foldershare.getFolder());
                 }
             }
@@ -173,6 +173,7 @@ public class FolderService {
             Optional<FolderShare> f = folderShareRepository.findByFolderAndRecipient(folder, r);
             if (f.isPresent()) {
                 f.get().setPermissionLevel(recipient.getPermissionLevel());//Changed the permission level
+                f.get().setRevokedAt(null);//clear any prior revocation so re-sharing actually restores access
                 folderShareRepository.save(f.get());
                 return;//acts like a continue here
             }
@@ -183,26 +184,25 @@ public class FolderService {
     }
 
     public void allFilesInFolderShare(List<FolderShareRequest> recipients, User currentUser, Folder parentFolder, Map<UUID, String> encryptionKeys) {
-        //since this is called after foldershare is completed, we can assume three things
-        //the folder exists
-        //all recipients in the recipients list exist
-        //the user has permission to share the folder
+        //since this is called after foldershare is completed, we can assume three things, the folder exists
+        //all recipients in the recipients list exist the user has permission to share the folder
         List<StoredFile> filesInFolder = fileRepository.findByFolder(parentFolder);
         //if a file has already been shared to a recipient, this will create duplicate shares.
         recipients.forEach(recipient -> {
-            Optional<User> r = userRepository.findById(recipient.getRecipientId());
+            //orElseThrow instead of get(), if user was deleted in the middle of this function, it will cause NoSuchElementException. edge case
+            User r = userRepository.findById(recipient.getRecipientId()).orElseThrow(() -> new UserNotFoundException("User does not exist"));
             filesInFolder.forEach(file -> {
                 String encKey = encryptionKeys.get(file.getFileId());
-                FileShare newFileShare = FileShare.builder().file(file).recipient(r.get()).permissionLevel(recipient.getPermissionLevel()).expiresAt(recipient.getExpiresAt()).encryptedFileKey(encKey).build();
-                //not putting the EncryptionKey
-                Optional<FileShare> duplicate = fileShareRepository.findByFileAndRecipientAndPermissionLevel(file, r.get(), recipient.getPermissionLevel());
+                FileShare newFileShare = FileShare.builder().file(file).recipient(r).permissionLevel(recipient.getPermissionLevel()).expiresAt(recipient.getExpiresAt()).encryptedFileKey(encKey).build();
+                //find by file+recipient only,not permission level, so that changing permission level removes the old share rather than leaving both active
+                Optional<FileShare> duplicate = fileShareRepository.findByFileAndRecipient(file, r);
                 if (duplicate.isPresent()) {
                     fileShareRepository.delete(duplicate.get());
                 }
                 fileShareRepository.save(newFileShare);
             });
         });
-        //now all files are shared, time to share all folders.
+        //now all files are shared, now we share all folders.
         List<Folder> subFolders = folderRepository.findByParentFolder(parentFolder);
         subFolders.forEach(subfolder -> {
             if(!Boolean.TRUE.equals(subfolder.getIsDeleted())){
@@ -212,6 +212,6 @@ public class FolderService {
         });
     }
     public FolderResponse toFolderResponse(Folder folder){
-        return FolderResponse.builder().folderId(folder.getFolderId()).name(folder.getName()).parentFolderId(folder.getParentFolder().getFolderId()).createdAt(folder.getCreatedAt()).isShared(folder.getIsShared()).build();
+        return FolderResponse.builder().folderId(folder.getFolderId()).name(folder.getName()).parentFolderId(folder.getParentFolder() == null ? null : folder.getParentFolder().getFolderId()).createdAt(folder.getCreatedAt()).isShared(folder.getIsShared()).build();
     }
 }

@@ -24,6 +24,7 @@ public interface FileRepository extends JpaRepository<StoredFile, UUID>{
     List<StoredFile> findByOwner(User owner);
     Page<StoredFile> findByFolder(Folder folder, Pageable pageable);
     List<StoredFile> findByFolder(Folder folder);
+    List<StoredFile> findByFolderAndOwner(Folder folder, User owner);
     Page<StoredFile> findByUploadStatus(UploadStatus uploadStatus);
     Page<StoredFile> findByUploadedAtBeforeAndIsDeleted(LocalDateTime cutoff, Boolean isDeleted);
 

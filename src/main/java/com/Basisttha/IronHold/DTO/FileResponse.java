@@ -18,4 +18,5 @@ public class FileResponse {
     private UploadStatus uploadStatus;
     private LocalDateTime uploadedAt;
     private UUID folderId;
+    private boolean isDeleted;
 }
