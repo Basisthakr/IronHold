@@ -9,14 +9,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import com.Basisttha.IronHold.Model.Folder;
 import com.Basisttha.IronHold.Model.StoredFile;
 import com.Basisttha.IronHold.Model.User;
 
-
-@Repository
 public interface FileRepository extends JpaRepository<StoredFile, UUID>{
     
     Page<StoredFile> findByOwner(User owner, Pageable pageable);
