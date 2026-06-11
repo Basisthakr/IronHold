@@ -12,12 +12,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.Basisttha.IronHold.DTO.FolderResponse;
 import com.Basisttha.IronHold.DTO.FolderShareRequestList;
 import com.Basisttha.IronHold.DTO.PageResponse;
-import com.Basisttha.IronHold.Model.Folder;
 import com.Basisttha.IronHold.Model.User;
 import com.Basisttha.IronHold.Service.FolderService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -35,7 +36,7 @@ public class FolderController {
     }
 
     @GetMapping("/list")
-    public ResponseEntity<PageResponse<Folder>> listFolders(@RequestParam(required = false) UUID parentFolderId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+    public ResponseEntity<PageResponse<FolderResponse>> listFolders(@RequestParam(required = false) UUID parentFolderId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(folderService.listFolders(parentFolderId, currentUser, page, size));
     }
@@ -48,7 +49,7 @@ public class FolderController {
     }
 
     @PostMapping("/share")
-    public ResponseEntity<String> shareFolder(@RequestBody FolderShareRequestList req) {
+    public ResponseEntity<String> shareFolder(@Valid @RequestBody FolderShareRequestList req) {
         User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         folderService.shareFolder(currentUser, req);
         return ResponseEntity.ok("The Folder and all of its contents have been shared");

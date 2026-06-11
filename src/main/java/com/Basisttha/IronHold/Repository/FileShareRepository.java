@@ -17,6 +17,7 @@ import com.Basisttha.IronHold.Model.User;
 @Repository
 public interface FileShareRepository extends JpaRepository<FileShare, UUID>{
     List<FileShare> findByFile(StoredFile file);
+    List<FileShare> findByFileIn(List<StoredFile> file);
     List<FileShare> findByRecipient(User recipient);
 
     Optional<FileShare> findByFileAndRecipient(StoredFile file, User recipient);

@@ -13,7 +13,6 @@ import org.springframework.stereotype.Repository;
 
 import com.Basisttha.IronHold.Model.Folder;
 import com.Basisttha.IronHold.Model.StoredFile;
-import com.Basisttha.IronHold.Model.UploadStatus;
 import com.Basisttha.IronHold.Model.User;
 
 
@@ -24,9 +23,7 @@ public interface FileRepository extends JpaRepository<StoredFile, UUID>{
     List<StoredFile> findByOwner(User owner);
     Page<StoredFile> findByFolder(Folder folder, Pageable pageable);
     List<StoredFile> findByFolder(Folder folder);
-    Page<StoredFile> findByUploadStatus(UploadStatus uploadStatus);
-    Page<StoredFile> findByUploadedAtBeforeAndIsDeleted(LocalDateTime cutoff, Boolean isDeleted);
-
+    List<StoredFile> findByFolderAndOwner(Folder folder, User owner);
     @Query("SELECT f FROM StoredFile f WHERE f.owner.username LIKE 'demo_%' AND f.uploadedAt < :cutoff AND f.isDeleted =false")
     List<StoredFile> findDemoFilesOlderThan(@Param("cutoff") LocalDateTime cutoff);
 }

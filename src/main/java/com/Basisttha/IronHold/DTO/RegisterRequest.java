@@ -13,5 +13,6 @@ public class RegisterRequest {
     @NotEmpty(message = "Username cannot be empty")
     @Size(min = 2, max = 50, message = "Between 2 and 50 characters only")
     private String username;
+    @NotEmpty(message = "publicKey cannot be empty")
     private String publicKey;
 }

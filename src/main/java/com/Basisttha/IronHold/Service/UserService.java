@@ -1,13 +1,6 @@
 package com.Basisttha.IronHold.Service;
 
 import java.security.InvalidKeyException;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.UUID;
-
-import org.springframework.stereotype.Service;
-
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -16,8 +9,13 @@ import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.UUID;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
 
 import com.Basisttha.IronHold.DTO.AuthResponse;
 import com.Basisttha.IronHold.DTO.ChallengeRequest;
@@ -70,7 +68,8 @@ public class UserService {
                 .build();
 
         newUser = userRepo.save(newUser);
-        return RegisterResponse.builder().userId(newUser.getUserId()).build();
+        RecoveryKeyResponse recoveryKeys = rotateRecoveryKeys(RecoveryKeyRequest.builder().userId(newUser.getUserId()).build(), newUser);
+        return RegisterResponse.builder().userId(newUser.getUserId()).recoveryKeys(recoveryKeys.getRecoveryKeys()).build();
     }
 
     public ChallengeResponse challengeRequest(ChallengeRequest req) throws UserNotFoundException {
@@ -104,7 +103,7 @@ public class UserService {
         //check if user exists, check if a challenge is active and unused, check if signautre valid, if yes send token
         User currentUser = userRepo.findById(req.getUserId()).orElseThrow(() -> new UserNotFoundException("This user does not exist"));
 
-        AuthChallenges auth = authRepo.findByUserAndUsedFalse(currentUser).orElseThrow(() -> new RuntimeException("No authentication challenge exists"));
+        AuthChallenges auth = authRepo.findByUserAndUsedFalse(currentUser).orElseThrow(() -> new UnauthorizedException("No authentication challenge exists"));
         if(!auth.getExpiry().isAfter(LocalDateTime.now()))   throw new UnauthorizedException("The challenge has expired");
 
         boolean valid = verifySignature(auth.getNonce(), req.getSignature(), currentUser.getPublicKey());
@@ -125,16 +124,15 @@ public class UserService {
     @Transactional//Transactional here because if current token is revoked and then the function crashes before sending the new token, the user will not be able to log in
     public LogoutResponse logout(LogoutRequest req, User currentUser) throws UserNotFoundException, RuntimeException{
         //verify if the user has a valid JWT, then revoke that JWT and send uuid back to user
-        User user = userRepo.findById(req.getUserId()).orElseThrow(() -> new UserNotFoundException("This user does not exist"));
         if(!currentUser.getUserId().equals(req.getUserId()))   throw new UnauthorizedException("You cannot log out for another user");
         String token = req.getToken();
         boolean valid = jwtService.isTokenValid(token);
         if(!valid){
-            throw new RuntimeException("Invalid Request");
+            throw new UnauthorizedException("Invalid Request");
         }
         RevokedToken revokedToken = RevokedToken.builder().token(token).expiresAt(jwtService.extractExpiry(token)).revokedAt(LocalDateTime.now()).build();
         revokedTokenRepo.save(revokedToken);
-        return new LogoutResponse(user.getUserId());
+        return new LogoutResponse(currentUser.getUserId());
     }
 
     @Transactional
@@ -149,7 +147,7 @@ public class UserService {
         if(activeKeys.isEmpty()){
             throw new NoRecoveryKeysException("No recovery keys left. Please generate new ones.");
         }
-        RecoveryKey matchedKey= activeKeys.stream().filter(k -> passwordEncoder.matches(req.getRecoverykey(), k.getRecoveryKeyHash())).findFirst().orElseThrow(() -> new RuntimeException("Invalid Recovery key"));
+        RecoveryKey matchedKey= activeKeys.stream().filter(k -> passwordEncoder.matches(req.getRecoverykey(), k.getRecoveryKeyHash())).findFirst().orElseThrow(() -> new UnauthorizedException("Invalid Recovery key"));
 
         matchedKey.setUsed(true);
         matchedKey.setUsedOn(LocalDateTime.now());
@@ -168,7 +166,7 @@ public class UserService {
         //find previous keys that are not invalidated. Use stream, map to invalidate them. The generate 8 new keys and send back
         User user = userRepo.findById(req.getUserId()).orElseThrow(() -> new UserNotFoundException("This user does not exist"));
         if(!currentUser.getUserId().equals(req.getUserId()))   throw new UnauthorizedException("You cannot rotate recovery keys for another user");
-        List<RecoveryKey> activeKeys = recoveryKeyRepository.findByUserAndInvalidatedFalse(user);
+        List<RecoveryKey> activeKeys = recoveryKeyRepository.findByUserAndInvalidatedFalseAndUsedFalse(user);
         //activeKeys.stream().map(key -> key.setInvalidated(true)).collect(collector.toList());
         activeKeys.forEach(key -> key.setInvalidated(true));//No working keys left now
         recoveryKeyRepository.saveAll(activeKeys);

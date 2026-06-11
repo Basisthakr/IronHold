@@ -15,16 +15,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.Basisttha.IronHold.DTO.CompleteUploadRequest;
 import com.Basisttha.IronHold.DTO.DownloadResponse;
+import com.Basisttha.IronHold.DTO.FileResponse;
 import com.Basisttha.IronHold.DTO.FileShareRequest;
 import com.Basisttha.IronHold.DTO.HardDeleteRequest;
 import com.Basisttha.IronHold.DTO.PageResponse;
 import com.Basisttha.IronHold.DTO.UploadRequest;
 import com.Basisttha.IronHold.DTO.UploadResponse;
 import com.Basisttha.IronHold.Exception.UnauthorizedException;
-import com.Basisttha.IronHold.Model.StoredFile;
 import com.Basisttha.IronHold.Model.User;
 import com.Basisttha.IronHold.Service.FileService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -34,7 +35,7 @@ public class FileController {
     private final FileService fileService;
 
     @PostMapping("/upload")
-    public ResponseEntity<UploadResponse> initiateUpload(@RequestBody UploadRequest req) throws FileNotFoundException{
+    public ResponseEntity<UploadResponse> initiateUpload(@Valid @RequestBody UploadRequest req) throws FileNotFoundException{
         User currentUser = (User)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(fileService.initiateUpload(req, currentUser));
     }
@@ -42,7 +43,7 @@ public class FileController {
     @PostMapping("/upload/complete")
     public ResponseEntity<String> completeUpload(@RequestBody CompleteUploadRequest req) throws FileNotFoundException, UnauthorizedException{
         User currentUser = (User)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        fileService.completeUpload(req.getFileId(), currentUser, req.getEncryptionKeyForRecipients());
+        fileService.completeUpload(req, currentUser);
         return ResponseEntity.ok("File has been uploaded");
     }
 
@@ -67,13 +68,13 @@ public class FileController {
     }
 
     @GetMapping("/list")
-    public ResponseEntity<PageResponse<StoredFile>> listAllFiles(@RequestParam(required = false) UUID parentFolderId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size){
+    public ResponseEntity<PageResponse<FileResponse>> listAllFiles(@RequestParam(required = false) UUID parentFolderId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size){
         User currentUser = (User)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(fileService.listAllFilesInFolder(parentFolderId, currentUser, page, size));
     }
 
     @PostMapping("/harddelete")
-    public ResponseEntity<String> hardDelete(@RequestBody HardDeleteRequest req) throws FileNotFoundException{
+    public ResponseEntity<String> hardDelete(@Valid @RequestBody HardDeleteRequest req) throws FileNotFoundException{
         User currentUser = (User)SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(fileService.hardDelete(req, currentUser));
     }
