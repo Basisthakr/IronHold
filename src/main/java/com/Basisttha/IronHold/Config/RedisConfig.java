@@ -14,6 +14,10 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+<<<<<<< Updated upstream
+=======
+import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+>>>>>>> Stashed changes
 
 @Configuration
 @EnableCaching
@@ -23,6 +27,12 @@ public class RedisConfig {
     public CacheManager cacheManager(RedisConnectionFactory factory) {
 
         GenericJacksonJsonRedisSerializer serializer = GenericJacksonJsonRedisSerializer.builder()
+<<<<<<< Updated upstream
+=======
+                .enableDefaultTyping(BasicPolymorphicTypeValidator.builder()
+                        .allowIfBaseType(Object.class)
+                        .build())
+>>>>>>> Stashed changes
                 .enableSpringCacheNullValueSupport()
                 .build();
 
@@ -45,6 +55,10 @@ public class RedisConfig {
         cacheConfigs.put("downloadUrls", downloadUrlConfig);
 
         return RedisCacheManager.builder(factory)
+<<<<<<< Updated upstream
+=======
+		.withInitialCacheConfigurations(cacheConfigs)
+>>>>>>> Stashed changes
                 .cacheDefaults(defaultConfig)
                 .build();
     }
