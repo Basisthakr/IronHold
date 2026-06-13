@@ -6,7 +6,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import com.Basisttha.IronHold.Model.FileShare;
 import com.Basisttha.IronHold.Model.PermissionLevel;
@@ -14,7 +13,6 @@ import com.Basisttha.IronHold.Model.StoredFile;
 import com.Basisttha.IronHold.Model.User;
 
 
-@Repository
 public interface FileShareRepository extends JpaRepository<FileShare, UUID>{
     List<FileShare> findByFile(StoredFile file);
     List<FileShare> findByFileIn(List<StoredFile> file);

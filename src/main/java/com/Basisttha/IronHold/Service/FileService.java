@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.Basisttha.IronHold.DTO.CompleteUploadRequest;
@@ -200,6 +201,7 @@ public class FileService {
         }
     }
 
+    @Cacheable(value = "downloadUrls", key = "#fileId")
     public DownloadResponse initiateDownload(UUID fileId, User currentUser)
             throws FileNotFoundException, UnauthorizedException {
         StoredFile file = fileRepository.findById(fileId)
